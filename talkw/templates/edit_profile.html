@@ -1,0 +1,80 @@
+{% load static tailwind_tags %}
+{% include 'header.html' %}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Profile</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    {% tailwind_css %}
+    <script>
+        function previewProfilePicture(input) {
+            var file = input.files[0];
+            var reader = new FileReader();
+
+            reader.onload = function(e) {
+                var image = document.getElementById("profile-picture-img");
+                image.src = e.target.result;
+            };
+
+            if (file) {
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100">
+    <!-- พื้นสีดำด้านบน -->
+    <div class="bg-black text-white py-4">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-3xl font-semibold">Edit Profile</h1>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto p-6">
+        <div class="bg-white shadow-md rounded-lg p-6 mt-6">
+            <form method="POST" enctype="multipart/form-data" class="grid grid-cols-2 gap-6">
+                {% csrf_token %}
+
+                <!-- รูปโปรไฟล์ -->
+                <div class="col-span-2 flex justify-center items-center">
+                    <div class="relative w-32 h-32 border-4 border-gray-300 rounded-full p-1 flex justify-center items-center">
+                        <img id="profile-picture-img"
+                             src="{% if user.profile_picture %}{{ user.profile_picture.url }}{% else %}{% static 'default-profile.png' %}{% endif %}"
+                             alt="Profile Picture"
+                             class="w-full h-full rounded-full object-cover cursor-pointer"
+                             onclick="document.getElementById('profile_picture').click();">
+                        <span class="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow-lg cursor-pointer text-xl">
+                            📷
+                        </span>
+                    </div>
+                    <input type="file" id="profile_picture" name="profile_picture" class="hidden" accept="image/*" onchange="previewProfilePicture(this)">
+                </div>
+
+                <!-- Username -->
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <input type="text" id="username" name="username" value="{{ user.username }}" class="w-full px-4 py-2 border rounded-lg text-gray-800" required>
+                </div>
+
+
+                <!-- Bio -->
+                <div>
+                    <label for="bio" class="block text-sm font-medium text-gray-700">Bio</label>
+                    <textarea id="bio" name="bio" rows="4" class="w-full px-4 py-2 border rounded-lg text-gray-800">{{ user.bio }}</textarea>
+                </div>
+
+                <!-- ปุ่มบันทึก -->
+                <div class="col-span-2 text-center mt-6">
+                    <button type="submit" class="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-900">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

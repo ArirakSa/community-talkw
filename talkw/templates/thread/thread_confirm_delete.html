@@ -1,0 +1,39 @@
+{% load static tailwind_tags %}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Delete</title>
+    <!-- Tailwind CSS via CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-200 font-sans">
+
+    <!-- Container -->
+    <div class="flex items-center justify-center min-h-screen">
+
+        <!-- Card -->
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full sm:w-96">
+            <h2 class="text-2xl font-semibold text-center text-gray-800 mb-6">Are you sure you want to delete this thread?</h2>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="flex justify-center space-x-4">
+                    <!-- Yes Button -->
+                    <button type="submit" class="px-6 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+                        Yes, Delete
+                    </button>
+                    <!-- Cancel Link -->
+                    <a href="{% url 'profile' %}" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg shadow-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

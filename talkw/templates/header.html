@@ -1,0 +1,89 @@
+{% load static tailwind_tags %}
+<header class="bg-gray-800 text-white shadow-md fixed top-0 left-0 right-0">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <!-- Centered container for logo and navigation -->
+        <div class="flex items-center justify-center space-x-6 w-full">
+            <!-- Logo -->
+            <div class="flex items-center space-x-2">
+                <img src="{% static 'images/logo.png' %}" alt="Logo" class="h-8 w-auto">
+            </div>
+
+            <!-- Navigation Tabs -->
+            <nav class="flex space-x-6">
+                <a href="{% url 'home' %}" class="text-gray-300 hover:text-white">Home</a>
+                <a href="{% url 'content' %}" class="text-gray-300 hover:text-white">Content</a>
+
+                <!-- Search Form -->
+                <form method="GET" action="{% url 'search_results' %}" class="relative">
+                    <input type="text" name="q" placeholder="Search..." class="bg-white text-black py-1 px-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="submit" class="absolute right-2 top-2 text-gray-500">
+                        🔍
+                    </button>
+                </form>
+
+                {% if user.is_authenticated %}
+                     <!-- เมื่อผู้ใช้เข้าสู่ระบบแล้ว -->
+                    <a href="{% url 'notifications_list' %}" class="relative text-gray-300 hover:text-white">
+                        Notifications
+                        {% if unread_notifications_count > 0 %}
+                            <span class="absolute top-0 right-0 text-xs text-red-500 font-bold bg-white rounded-full w-5 h-5 flex items-center justify-center -mr-2 -mt-2">
+                                {{ unread_notifications_count }}
+                            </span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'community' %}" class="text-gray-300 hover:text-white">Community</a>
+                    <a href="{% url 'profile' %}" class="text-gray-300 hover:text-white">Profile</a>  <!-- ลิงก์ไปหน้าโปรไฟล์ของผู้ใช้ -->
+                    <button id="logoutBtn" class="text-gray-300 hover:text-white">Signout</button>
+                {% else %}
+                    <!-- หากผู้ใช้ยังไม่ได้เข้าสู่ระบบ -->
+                    <a href="{% url 'signin' %}">Login</a>
+                    <a href="{% url 'signup' %}">Sign Up</a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+</header>
+
+
+<!-- Logout Confirmation Dialog -->
+<div id="logoutDialog" class="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 hidden">
+    <div class="bg-white rounded-lg shadow-lg p-8 w-96 text-center flex flex-col justify-center items-center">
+        <h2 class="text-2xl font-semibold mb-4">Confirm Logout</h2>
+        <p class="mb-4">Are you sure you want to log out?</p>
+        <p class="mb-6">You will need to log in again to access your account.</p>
+        <div class="flex space-x-4">
+            <button id="cancelBtn" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Cancel</button>
+
+            <form method="POST" action="{% url 'signout' %}">
+                {% csrf_token %}
+                <button type="submit" class="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                    Signout
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Get the dialog and buttons
+    const logoutBtn = document.getElementById('logoutBtn');
+    const logoutDialog = document.getElementById('logoutDialog');
+    const cancelBtn = document.getElementById('cancelBtn');
+
+    // Show the dialog when the logout button is clicked
+    logoutBtn.addEventListener('click', () => {
+        logoutDialog.classList.remove('hidden');
+    });
+
+    // Hide the dialog when the cancel button is clicked
+    cancelBtn.addEventListener('click', () => {
+        logoutDialog.classList.add('hidden');
+    });
+
+    // Optional: Close dialog by clicking outside
+    logoutDialog.addEventListener('click', (event) => {
+        if (event.target === logoutDialog) {
+            logoutDialog.classList.add('hidden');
+        }
+    });
+</script>

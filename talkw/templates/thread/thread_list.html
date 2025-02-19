@@ -1,0 +1,144 @@
+{% load static tailwind_tags %}
+{% include 'header.html' %}
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threads</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4">Threads</h1>
+        <a href="{% url 'thread_form' %}" class="bg-blue-500 text-white px-4 py-2 rounded">Create New Thread</a>
+
+        <div class="mt-4 space-y-4">
+            {% for thread in threads %}
+                <div class="bg-white shadow-md rounded-lg p-4 relative">
+                    <!-- Dropdown Menu -->
+                    <div class="relative">
+                        <button onclick="toggleDropdown({{ thread.pk }})" class="absolute right-0 top-0 text-gray-500 hover:text-gray-700 p-2">
+                            &#x22EE;
+                        </button>
+                        <div id="dropdown-{{ thread.pk }}" class="absolute right-0 mt-8 w-32 bg-white border border-gray-300 rounded-lg shadow-lg hidden">
+                            {% if user == thread.author %}
+                                <a href="{% url 'thread_edit' pk=thread.pk %}" class="block px-4 py-2 text-yellow-500 hover:bg-gray-100">Edit</a>
+                                <a href="{% url 'thread_delete' pk=thread.pk %}" class="block px-4 py-2 text-red-500 hover:bg-gray-100">Delete</a>
+                            {% else %}
+                                <button type="button" onclick="openReportModal({{ thread.pk }})" class="block w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100">
+                                    Report
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Author info -->
+                    <div class="text-lg text-gray-500 mt-2">
+                        <a href="{% url 'profile_other' pk=thread.author.id %}" class="text-blue-500 hover:underline">
+                            {{ thread.author.username }}
+                        </a>
+                        <span class="text-gray-600 ml-2">({{ thread.author.user_category }})</span>
+                        <div class="text-gray-400 mt-1 text-xs">Posted on {{ thread.created_at|date:"d/m/y" }}</div>
+                    </div>
+
+                    <!-- Hashtags -->
+                    <div class="flex flex-wrap gap-2 mb-2 mt-2">
+                        {% for hashtag in thread.hashtags.all %}
+                            <a href="{% url 'hashtag_detail' hashtag.pk %}" class="text-sm text-blue-500 hover:underline">
+                                #{{ hashtag.name }}
+                            </a>
+                        {% empty %}
+                            <p class="text-gray-500">No hashtags available.</p>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Thread title and content -->
+                    <h2 class="font-semibold text-lg text-gray-800">{{ thread.title }}</h2>
+                    <a href="{% url 'thread_detail' pk=thread.pk %}" class="text-blue-500 mt-2 inline-block">Read more</a>
+                </div>
+            {% empty %}
+                <p class="text-gray-500 text-center">No threads available.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function toggleDropdown(threadId) {
+            let dropdown = document.getElementById(`dropdown-${threadId}`);
+            dropdown.classList.toggle("hidden");
+        }
+
+        document.addEventListener("click", function (event) {
+            document.querySelectorAll("[id^='dropdown-']").forEach(dropdown => {
+                if (!dropdown.contains(event.target) && !event.target.matches("button")) {
+                    dropdown.classList.add("hidden");
+                }
+            });
+        });
+
+        function openReportModal(threadId) {
+            Swal.fire({
+                title: "Report this thread",
+                html: `
+                    <input type="text" id="report-reason" class="swal2-input" placeholder="Enter your reason (optional)">
+                    <input type="file" id="report-image" class="swal2-file" style="width: 70%; height: 30px;">
+                `,
+                showCancelButton: true,
+                confirmButtonText: "Submit Report",
+                cancelButtonText: "Cancel",
+                customClass: {
+                    confirmButton: 'btn-red',
+                },
+                preConfirm: () => {
+                    const reason = document.getElementById("report-reason").value;
+                    const imageFile = document.getElementById("report-image").files[0];
+
+                    if (!reason && !imageFile) {
+                        Swal.showValidationMessage("Please provide a reason or attach an image.");
+                        return false;
+                    }
+
+                    const formData = new FormData();
+                    formData.append("reason", reason);
+                    if (imageFile) {
+                        formData.append("image", imageFile);
+                    }
+
+                    const csrfToken = "{{ csrf_token }}";
+                    formData.append("csrfmiddlewaretoken", csrfToken);
+
+                    return fetch(`/report-thread/${threadId}/`, {
+                        method: "POST",
+                        body: formData,
+                        headers: {
+                            "X-CSRFToken": csrfToken
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.error || "Failed to submit report.");
+                        }
+                        Swal.fire("Reported!", "Your report has been submitted.", "success");
+                    })
+                    .catch(error => {
+                        Swal.fire("Error!", error.message, "error");
+                    });
+                }
+            });
+        }
+    </script>
+
+    <style>
+        .btn-red {
+            background-color: #e3342f !important;
+            color: white !important;
+        }
+    </style>
+</body>
+</html>

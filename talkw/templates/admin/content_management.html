@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+{% include 'admin/admin_taskbar.html' %}
+
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4">
+        <h1 class="text-xl mb-4">Content Management</h1>
+
+        <!-- ลิงก์ไปที่หน้าเพิ่มคำศัพท์ -->
+        <a href="{% url 'add_slang' %}" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 inline-block">Add New Slang</a>
+
+        <!-- ลิงก์ไปที่หน้าเพิ่มบทความ -->
+        <a href="{% url 'add_article' %}" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 inline-block">Add New Article</a>
+
+        <!-- Dropdown สำหรับเลือกเนื้อหาที่เป็นบทความ -->
+        <select class="mb-4 p-2 border rounded">
+            <option value="">Select Article</option>
+            {% for content in contents %}
+                <option value="{{ content.id }}">{{ content.title }}</option>
+            {% endfor %}
+        </select>
+
+        <table class="w-full table-auto border-collapse border border-gray-300">
+            <thead>
+                <tr>
+                    <th class="px-4 py-2 border-b">Title</th>
+                    <th class="px-4 py-2 border-b">Created By</th>
+                    <th class="px-4 py-2 border-b">Created At</th>
+                    <th class="px-4 py-2 border-b">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for content in contents %}
+                    <tr>
+                        <td class="px-4 py-2 border-b">{{ content.title }}</td>
+                        <td class="px-4 py-2 border-b">{{ content.created_by }}</td>
+                        <td class="px-4 py-2 border-b">{{ content.created_at }}</td>
+                        <td class="px-4 py-2 border-b">
+                            <a href="{% url 'content_edit' content.id %}" class="text-blue-600 hover:underline">Edit</a>
+                            <a href="{% url 'content_delete' content.id %}" class="text-red-600 hover:underline">Delete</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

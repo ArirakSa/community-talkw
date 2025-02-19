@@ -1,0 +1,43 @@
+{% include 'header.html' %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community - Popular Hashtags</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+<!-- Container ใหญ่ -->
+    <div class="max-w-4xl mx-auto mt-12 p-6">
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <div class="max-w-4xl mx-auto">
+                <h1 class="text-2xl font-bold mb-4">Popular Hashtags</h1>
+                <!-- ส่วนที่จะแสดง Hashtags -->
+                <div class="bg-gray-800 shadow-md rounded-lg p-6">
+
+                        <!-- แสดง Popular Hashtags -->
+<div class="flex flex-wrap space-x-4">
+    {% for hashtag in popular_hashtags %}
+        <div class="bg-white p-2 rounded-lg shadow mb-2 flex items-center space-x-2">
+            <!-- ลิงก์ไปที่หน้ารายละเอียดของ Hashtag -->
+            <a href="{% url 'hashtag_detail' hashtag.pk %}" class="text-md font-medium text-blue-500">
+                {{ hashtag.name }}
+            </a>
+            <p class="text-md text-gray-500">Threads: {{ hashtag.thread_count }}</p>
+        </div>
+    {% empty %}
+        <p class="text-lg text-gray-600">No popular hashtags found.</p>
+    {% endfor %}
+</div>
+
+
+                </div>
+                <!-- ปุ่มย้อนกลับ -->
+                <a href="{% url 'home' %}" class="mt-4 inline-block text-gray-600 hover:underline font-bold">Back to Home</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,265 @@
+{% load static %}
+{% load tailwind_tags %}
+{% include 'header.html' %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Thread</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Container ใหญ่ -->
+    <div class="max-w-4xl mx-auto mt-12 p-6 bg-white">
+
+        <!-- คำอธิบายด้านบนเกี่ยวกับผลลัพธ์การค้นหา -->
+        <div class="mb-4 text-gray-600 mt-10">  <!-- เพิ่ม mt-4 เพื่อขยับลงจาก header -->
+            {% if search_query %}
+                <p class="text-lg font-semibold">Search Results for: "{{ search_query }}"</p>
+            {% else %}
+                <p class="text-lg font-semibold">Search results</p>
+            {% endif %}
+        </div>
+
+        {% if threads %}
+            <div class="space-y-4">
+                {% for thread in threads %}
+                    <div class="bg-white shadow-md rounded-lg p-4 relative">
+
+                        <!-- Dropdown Menu -->
+                        <div class="relative">
+                            <button onclick="toggleDropdown({{ thread.pk }})" class="absolute right-0 top-0 text-gray-500 hover:text-gray-700 p-2">
+                                &#x22EE;
+                            </button>
+                            <div id="dropdown-{{ thread.pk }}" class="absolute right-0 mt-8 w-32 bg-white border border-gray-300 rounded-lg shadow-lg hidden">
+                                {% if user == thread.author %}
+                                    <a href="{% url 'thread_edit' pk=thread.pk %}" class="block px-4 py-2 text-yellow-500 hover:bg-gray-100">Edit</a>
+<a href="#" onclick="confirmDelete({{ thread.pk }})" class="block px-4 py-2 text-red-500 hover:bg-gray-100">
+    Delete
+</a>                                {% else %}
+                                    <button type="button" onclick="openReportModal({{ thread.pk }})" class="block w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100">
+                                        Report
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Author info -->
+<div class="flex items-center mt-2 text-lg text-gray-500">
+    <!-- Profile Picture -->
+    <a href="{% url 'profile' %}" class="mr-3">
+        <div class="inline-block">
+            {% if user.profile_picture %}
+                <img src="{{ user.profile_picture.url }}" alt="Profile Picture" class="w-10 h-10 rounded-full object-cover">
+            {% endif %}
+        </div>
+    </a>
+
+    <!-- Author Details -->
+    <div class="flex flex-col">
+        <div>
+            <a href="{% url 'profile_other' pk=thread.author.id %}" class="text-blue-500 hover:underline font-medium">
+                {{ thread.author.username }}
+            </a>
+            <span class="text-gray-600 ml-2">({{ thread.author.user_category }})</span>
+        </div>
+        <div class="text-gray-400 mt-1 text-xs">Posted on {{ thread.created_at|date:"d/m/y" }}</div>
+</div>
+        <!-- Hashtags -->
+<div class="flex flex-wrap gap-2 mt-1 ml-4">
+    {% for hashtag in thread.hashtags.all %}
+        <a href="{% url 'hashtag_detail' hashtag.pk %}" class="text-sm text-blue-500 hover:underline">
+            #{{ hashtag.name }}
+        </a>
+    {% endfor %}
+</div>
+
+</div>
+
+                        <!-- Thread title and content -->
+                        <h2 class="font-semibold text-lg text-gray-800">{{ thread.title }}</h2>
+                        <a href="{% url 'thread_detail' pk=thread.pk %}" class="text-blue-500 mt-2 inline-block">Read more</a>
+                    <!-- Comment Box -->
+<div class="bg-gray-100 border border-gray-300  rounded-lg p-4 mb-4 mt-2">
+    <p class="text-md font-medium text-gray-700 cursor-pointer hover:text-gray-900" onclick="openCommentModal({{ thread.pk }})">
+        Comment
+    </p>
+</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-gray-500 text-center">No threads available.</p>
+        {% endif %}
+    </div>
+
+</body>
+</html>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function toggleDropdown(threadId) {
+        let dropdown = document.getElementById(`dropdown-${threadId}`);
+        dropdown.classList.toggle("hidden");
+    }
+
+    // ปิด dropdown เมื่อคลิกที่อื่น
+    document.addEventListener("click", function (event) {
+        document.querySelectorAll("[id^='dropdown-']").forEach(dropdown => {
+            if (!dropdown.contains(event.target) && !event.target.matches("button")) {
+                dropdown.classList.add("hidden");
+            }
+        });
+    });
+
+    function openReportModal(threadId) {
+        Swal.fire({
+            title: "Report this thread",
+            html: `
+                <input type="text" id="report-reason" class="swal2-input" placeholder="Enter your reason (optional)">
+                <input type="file" id="report-image" class="swal2-file" style="width: 70%; height: 30px;">
+            `,
+            showCancelButton: true,
+            confirmButtonText: "Submit Report",
+            cancelButtonText: "Cancel",
+            customClass: {
+                confirmButton: 'btn-red',
+            },
+            preConfirm: () => {
+                const reason = document.getElementById("report-reason").value;
+                const imageFile = document.getElementById("report-image").files[0];
+
+                if (!reason && !imageFile) {
+                    Swal.showValidationMessage("Please provide a reason or attach an image.");
+                    return false;
+                }
+
+                const formData = new FormData();
+                formData.append("reason", reason);
+                if (imageFile) {
+                    formData.append("image", imageFile);
+                }
+
+                // ใช้ Django template syntax ให้ถูกต้อง
+                const csrfToken = "{{ csrf_token }}";
+                formData.append("csrfmiddlewaretoken", csrfToken);
+
+                return fetch(`/report-thread/${threadId}/`, {  // ปรับ URL ให้ถูกต้อง
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        "X-CSRFToken": csrfToken  // ใส่ CSRF Token ใน header ด้วย
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error || "Failed to submit report.");
+                    }
+                    Swal.fire("Reported!", "Your report has been submitted.", "success");
+                })
+                .catch(error => {
+                    Swal.fire("Error!", error.message, "error");
+                });
+            }
+        });
+    }
+    // ปรับ CSRF token ให้ถูกต้อง
+    const csrfToken = "{{ csrf_token }}";
+
+    function openCommentModal(threadId) {
+        Swal.fire({
+            title: "Add a Comment",
+            html: `
+                <textarea id="comment-text" class="swal2-textarea" placeholder="Enter your comment" rows="4"></textarea>
+            `,
+            showCancelButton: true,
+            confirmButtonText: "Post Comment",
+            cancelButtonText: "Cancel",
+            customClass: {
+                confirmButton: 'btn-blue',
+            },
+            preConfirm: () => {
+                const commentContent = document.getElementById("comment-text").value;
+
+                if (!commentContent) {
+                    Swal.showValidationMessage("Please enter a comment.");
+                    return false;
+                }
+
+                const formData = new FormData();
+                formData.append("content", commentContent);
+
+                formData.append("csrfmiddlewaretoken", csrfToken); // เพิ่ม CSRF token
+
+                return fetch(`/thread/${threadId}/comment/`, {  // URL ให้ถูกต้อง
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        "X-CSRFToken": csrfToken  // เพิ่ม CSRF token ใน header
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error || "Failed to post comment.");
+                    }
+                    Swal.fire("Comment Posted!", "Your comment has been posted.", "success");
+                })
+                .catch(error => {
+                    Swal.fire("Error!", error.message, "error");
+                });
+            }
+        });
+    }
+    function confirmDelete(threadId) {
+    Swal.fire({
+        title: "Are you sure?",
+        text: "This action cannot be undone!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete it!"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const formData = new FormData();
+            formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+            fetch(`/thread/${threadId}/delete/`, {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire("Deleted!", "The thread has been deleted.", "success")
+                        .then(() => location.reload());
+                } else {
+                    Swal.fire("Error!", "Failed to delete thread.", "error");
+                }
+            })
+            .catch(error => Swal.fire("Error!", "Something went wrong.", "error"));
+        }
+    });
+}
+
+
+</script>
+
+<!-- เพิ่ม CSS เพื่อปรับแต่งปุ่ม -->
+<style>
+    .btn-red {
+        background-color: #e3342f !important;
+        color: white !important;
+    }
+    .btn-blue {
+        background-color: #3490dc !important;
+        color: white !important;
+    }
+</style>
+

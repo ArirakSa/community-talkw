@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+  <!-- Header (sticky) -->
+  <header class="bg-gray-800 text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <h1 class="text-xl font-bold">Admin Dashboard</h1>
+      <!-- ถ้าต้องการเพิ่มเมนูหรือปุ่มอื่นๆ ให้เพิ่มที่นี่ -->
+    </div>
+  </header>
+
+  <div class="flex">
+    <!-- Sidebar (sticky) -->
+    <aside class="w-25 bg-gray-700 text-white min-h-screen  p-4 sticky top-16">
+      <ul class="space-y-4">
+        <li>
+          <a href="{% url 'admin_dashboard' %}" class="block py-2 px-4 rounded hover:bg-gray-600 transition">Dashboard</a>
+        </li>
+        <li>
+          <a href="{% url 'user_management' %}" class="block py-2 px-4 rounded hover:bg-gray-600 transition">User Management</a>
+        </li>
+        <li>
+          <a href="{% url 'content_management' %}" class="block py-2 px-4 rounded hover:bg-gray-600 transition">Content Management</a>
+        </li>
+      </ul>
+    </aside>
+
+</body>
+</html>

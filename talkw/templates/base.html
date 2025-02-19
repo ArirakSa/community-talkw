@@ -1,0 +1,48 @@
+{% load static tailwind_tags %}
+
+<header class="bg-gray-800 text-white shadow-md fixed top-0 left-0 right-0">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div class="flex items-center justify-center space-x-6 w-full">
+            <!-- Logo -->
+            <div class="flex items-center space-x-2">
+                <img src="{% static 'images/logo.png' %}" alt="Logo" class="h-8 w-auto">
+            </div>
+
+            <!-- Navigation Tabs -->
+            <nav class="flex space-x-6">
+                <a href="{% url 'home' %}" class="text-gray-300 hover:text-white">Home</a>
+                <a href="{% url 'content' %}" class="text-gray-300 hover:text-white">Content</a>
+
+                <!-- Search Form -->
+                <form method="GET" action="{% url 'search_results' %}" class="relative">
+                    <input type="text" name="q" placeholder="Search..." class="bg-white text-black py-1 px-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="submit" class="absolute right-2 top-2 text-gray-500">
+                        🔍
+                    </button>
+                </form>
+
+                {% if user.is_authenticated %}
+                    <!-- เมื่อผู้ใช้เข้าสู่ระบบแล้ว -->
+                    <a href="{% url 'notifications_list' %}" class="relative text-gray-300 hover:text-white">
+                        Notifications
+                        {% if unread_notifications_count > 0 %}
+                            <span class="absolute top-0 right-0 text-xs text-red-500 font-bold bg-white rounded-full w-5 h-5 flex items-center justify-center -mr-2 -mt-2">
+                                {{ unread_notifications_count }}
+                            </span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'community' %}" class="text-gray-300 hover:text-white">Community</a>
+                    <a href="{% url 'profile' %}" class="text-gray-300 hover:text-white">Profile</a>
+                    <button id="logoutBtn" class="text-gray-300 hover:text-white">Signout</button>
+                {% else %}
+                    <a href="{% url 'signin' %}">Login</a>
+                    <a href="{% url 'signup' %}">Sign Up</a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+</header>
+
+{% block content %}
+<!-- เนื้อหาของหน้าอื่นๆ -->
+{% endblock %}

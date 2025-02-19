@@ -1,0 +1,37 @@
+{% load static tailwind_tags %}
+{% include 'header.html' %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    {% tailwind_css %}
+</head>
+<body class="bg-gray-100 p-8">
+<!-- Container ใหญ่ -->
+    <div class="max-w-4xl mx-auto mt-12 p-6">
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <div class="max-w-4xl mx-auto">
+                <h1 class="text-2xl font-bold mb-4"> Content </h1>
+ <!-- Content List -->
+                <div class="bg-white shadow-lg rounded-lg p-6">
+                    {% if contents %}
+                        <ul>
+                            {% for content in contents %}
+                             {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-center text-gray-500">No Contents yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+
+

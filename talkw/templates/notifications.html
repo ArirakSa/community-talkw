@@ -1,0 +1,62 @@
+{% load static tailwind_tags %}
+{% include 'header.html' %}
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications</title>
+    {% tailwind_css %}
+</head>
+<body class="bg-gray-100 p-8">
+    <!-- Container ใหญ่ -->
+    <div class="max-w-4xl mx-auto mt-12 p-6">
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <div class="max-w-4xl mx-auto">
+                <h1 class="text-2xl font-bold mb-4">Notifications</h1>
+
+                <!-- Notifications List -->
+               <ul class="divide-y divide-gray-200">
+    {% for notification in notifications %}
+    <li id="notification-{{ notification.id }}" class="{% if not notification.is_read %}bg-yellow-100{% else %}bg-white{% endif %}">
+        <a href="{% url 'thread_detail' notification.thread.id %}"
+           class="flex justify-between items-center px-4 py-4 hover:bg-gray-100 transition leading-relaxed"
+           onclick="markAsRead({{ notification.id }})">
+            <span class="text-gray-800">{{ notification.message }}</span>
+            <small class="text-gray-500 whitespace-nowrap">{{ notification.created_at }}</small>
+        </a>
+    </li>
+    {% empty %}
+    <li class="px-4 py-6 text-center text-gray-500">No notifications yet.</li>
+    {% endfor %}
+</ul>
+
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+<script>
+    function markAsRead(notificationId) {
+        fetch(`/notifications/read/${notificationId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let notificationItem = document.getElementById(`notification-${notificationId}`);
+                if (notificationItem) {
+                    notificationItem.classList.remove('bg-yellow-100');
+                    notificationItem.classList.add('bg-white');
+                }
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+</script>
