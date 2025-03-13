@@ -53,7 +53,6 @@ class CustomUserCreationForm(UserCreationForm):
         return cleaned_data
 
 
-
 class EditProfileForm(forms.ModelForm):
     class Meta:
         model = CustomUser
@@ -73,11 +72,6 @@ class EditProfileForm(forms.ModelForm):
     )
 
 
-
-
-
-
-
 class ThreadForm(forms.ModelForm):
     hashtags = forms.CharField(
         required=False,
@@ -94,7 +88,7 @@ class ThreadForm(forms.ModelForm):
 
     class Meta:
         model = Thread
-        fields = ["title", "content", "hashtags", "anonymous"]
+        fields = ["title", "content", "hashtags"]
 
     def clean_hashtags(self):
         """ แปลง hashtags ที่รับเข้ามาเป็น list """
@@ -122,16 +116,42 @@ class CommentForm(forms.ModelForm):
         model = Comment
         fields = ['content']
 
-from django import forms
-from .models import Slang, Article
 
 class SlangForm(forms.ModelForm):
     class Meta:
         model = Slang
         fields = ['word', 'meaning', 'is_profane']
 
+class BadwordForm(forms.Form):
+    badwords = forms.CharField(
+        widget=forms.Textarea(attrs={"placeholder": "ใส่คำหยาบ โดยคั่นด้วย , หรือขึ้นบรรทัดใหม่"}),
+        label="เพิ่มคำหยาบ",
+        required=True
+    )
+
+    def clean_badwords(self):
+        data = self.cleaned_data["badwords"]
+        words = {word.strip() for word in data.replace("\n", ",").split(",") if word.strip()}  # ใช้ set เพื่อลบคำซ้ำ
+        if not words:
+            raise forms.ValidationError("กรุณาเพิ่มคำอย่างน้อย 1 คำ")
+
+        # ตรวจสอบคำที่มีอยู่แล้วในฐานข้อมูล
+        existing_words = set(BadWord.objects.filter(word__in=words).values_list("word", flat=True))
+        duplicate_words = words & existing_words  # คำที่ซ้ำกันใน DB
+
+        if duplicate_words:
+            raise forms.ValidationError(f"คำเหล่านี้มีอยู่ในระบบแล้ว: {', '.join(duplicate_words)}")
+
+        return words  # คืนค่าเป็น set ของคำที่ผ่านการตรวจสอบแล้ว
+
 
 class ArticleForm(forms.ModelForm):
     class Meta:
         model = Article
-        fields = ['title', 'content', 'created_by']
+        fields = ['title', 'content']
+
+    content = forms.CharField(
+        widget=forms.Textarea(
+            attrs={'class': 'form-control', 'placeholder': 'โปรดใส่เนื้อหา', 'style': 'width: 100%; height: 200px;'}),
+        required=True
+    )

@@ -1,37 +1,53 @@
 {% load static tailwind_tags %}
-{% include 'header.html' %}
 {% load static %}
+{% include 'header.html' %}
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Content</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
     {% tailwind_css %}
 </head>
 <body class="bg-gray-100 p-8">
-<!-- Container ใหญ่ -->
+
     <div class="max-w-4xl mx-auto mt-12 p-6">
+        <!-- Card for content -->
         <div class="bg-white shadow-md rounded-lg p-6 mb-6">
-            <div class="max-w-4xl mx-auto">
-                <h1 class="text-2xl font-bold mb-4"> Content </h1>
- <!-- Content List -->
-                <div class="bg-white shadow-lg rounded-lg p-6">
-                    {% if contents %}
-                        <ul>
-                            {% for content in contents %}
-                             {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="text-center text-gray-500">No Contents yet.</p>
-                    {% endif %}
-                </div>
-            </div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">Content</h1>
+            <p class="text-sm text-gray-600">Number of articles: {{ articles.count }}</p>
+
+            <!-- List of Articles -->
+            {% if articles %}
+                <ul class="space-y-4">
+                {% for article in articles %}
+                    <li class="bg-gray-100 rounded-lg p-4 transition-all">
+                        <button class="w-full text-left text-md font-semibold text-gray-800 hover:text-blue-600 focus:outline-none"
+                                onclick="toggleContent('{{ article.id }}')">
+                            {{ article.title }}
+                        </button>
+                        <div id="content-{{ article.id }}" class="hidden mt-2 space-y-2">
+                            <p class="text-gray-700 whitespace-pre-line">{{ article.content|linebreaksbr }}</p>
+                            <p><small class="text-gray-500">Created at: {{ article.created_at }}</small></p>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-center text-gray-500">No articles yet.</p>
+            {% endif %}
         </div>
     </div>
+
+    <script>
+        function toggleContent(articleId) {
+            var content = document.getElementById("content-" + articleId);
+            if (content) {
+                content.classList.toggle("hidden");
+            }
+        }
+    </script>
+
 </body>
 </html>
-
-
-

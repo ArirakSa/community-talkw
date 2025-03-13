@@ -1,34 +1,85 @@
-<!DOCTYPE html>
-{% include 'admin/admin_taskbar.html' %}
+{% extends 'admin/admin_taskbar.html' %}
 
-<html lang="th">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
+{% block content %}
+  <main class="max-w-6xl mx-auto p-8">
 
-    <!-- Main Content Area -->
-    <main class="flex-1 p-8">
-      <h2 class="text-2xl font-semibold mb-4">Overview</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white p-4 rounded-lg shadow-md">
-          <h3 class="text-lg font-semibold">Total Users</h3>
-          <p class="text-2xl">{{ total_users }}</p>
-        </div>
-        <div class="bg-white p-4 rounded-lg shadow-md">
-          <h3 class="text-lg font-semibold">Total Content</h3>
-          <p class="text-2xl">{{ total_content }}</p>
-        </div>
-        <div class="bg-white p-4 rounded-lg shadow-md">
-          <h3 class="text-lg font-semibold">Recent Activities</h3>
-          <p class="text-xl">Show recent activities here...</p>
-        </div>
+    <!-- Stats Section -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center">
+        <h3 class="text-lg font-semibold text-gray-700">Total Users</h3>
+        <p class="text-3xl font-bold text-blue-500">{{ total_users }}</p>
       </div>
-    </main>
-  </div>
+      <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center">
+        <h3 class="text-lg font-semibold text-gray-700">Total Content</h3>
+        <p class="text-3xl font-bold text-green-500">{{ total_content }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center">
+        <h3 class="text-lg font-semibold text-gray-700">Total Posts</h3>
+        <p class="text-3xl font-bold text-orange-500">{{ total_posts }}</p>
+      </div>
+    </div>
 
-</body>
-</html>
+    <!-- Top 7 Hashtags -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mt-6 flex flex-col items-center overflow-x-auto w-full">
+      <h3 class="text-lg font-semibold text-gray-700">Top 7 Hashtags</h3>
+      <div id="hashtag-bar-chart" class="w-full"></div>
+    </div>
+
+    <!-- Pie Chart Section -->
+    <div class="bg-black rounded-lg shadow-lg p-6 mt-6 flex flex-col items-center justify-center w-full">
+      <h3 class="text-lg font-semibold text-white mb-4 text-center">User Category Distribution</h3>
+      <div id="piechart" class="w-full"></div>
+    </div>
+  </main>
+
+  <!-- Plotly and Tailwind scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min"></script>
+  <script>
+    try {
+        // User categories Pie chart
+        const userCategories = JSON.parse('{{ user_categories|escapejs }}');
+        const labels = userCategories.map(category => category.user_category || 'Unknown');
+        const data = userCategories.map(category => category.count);
+
+        const pieChartData = [{
+            values: data,
+            labels: labels,
+            type: 'pie',
+            textinfo: 'label+percent',
+            insidetextorientation: 'radial',
+            marker: { colors: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#FF9F40'] }
+        }];
+        const pieLayout = {
+            title: 'User Categories',
+            showlegend: true,
+            height: 400,
+            width: '100%',
+            margin: { l: 20, r: 20, t: 50, b: 20 }
+        };
+        Plotly.newPlot('piechart', pieChartData, pieLayout);
+
+        // Hashtags Bar Chart
+        const hashtags = JSON.parse('{{ top_hashtags|escapejs }}');
+        const hashtagLabels = hashtags.map(hashtag => hashtag.name);
+        const hashtagCounts = hashtags.map(hashtag => hashtag.tag_count);
+
+        const barChartData = [{
+            x: hashtagLabels,
+            y: hashtagCounts,
+            type: 'bar',
+            marker: { color: '#4BC0C0' }
+        }];
+        const barLayout = {
+            title: 'Top 7 Hashtags',
+            xaxis: { title: 'Hashtags', tickangle: -45 },
+            yaxis: { title: 'Count' },
+            height: 400,
+            width: '100%',
+            margin: { l: 50, r: 50, t: 50, b: 100 }
+        };
+        Plotly.newPlot('hashtag-bar-chart', barChartData, barLayout);
+    } catch (error) {
+        console.error("Error parsing data:", error);
+    }
+  </script>
+{% endblock %}

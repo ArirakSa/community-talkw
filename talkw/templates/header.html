@@ -8,6 +8,12 @@
                 <img src="{% static 'images/logo.png' %}" alt="Logo" class="h-8 w-auto">
             </div>
 
+    <!-- ปุ่มปรับขนาดตัวอักษร -->
+<div class="fixed bottom-4 right-4 flex space-x-2 bg-white p-2 shadow-lg rounded-lg z-50">
+    <button onclick="changeFontSize('increase')" class="px-3 py-1 bg-blue-500 text-white rounded">A+</button>
+    <button onclick="changeFontSize('decrease')" class="px-3 py-1 bg-gray-500 text-white rounded">A-</button>
+    <button onclick="resetFontSize()" class="px-3 py-1 bg-red-500 text-white rounded">Reset</button>
+</div>
             <!-- Navigation Tabs -->
             <nav class="flex space-x-6">
                 <a href="{% url 'home' %}" class="text-gray-300 hover:text-white">Home</a>
@@ -20,18 +26,18 @@
                         🔍
                     </button>
                 </form>
+                    <a href="{% url 'community' %}" class="text-gray-300 hover:text-white">Community</a>
 
                 {% if user.is_authenticated %}
                      <!-- เมื่อผู้ใช้เข้าสู่ระบบแล้ว -->
                     <a href="{% url 'notifications_list' %}" class="relative text-gray-300 hover:text-white">
                         Notifications
-                        {% if unread_notifications_count > 0 %}
-                            <span class="absolute top-0 right-0 text-xs text-red-500 font-bold bg-white rounded-full w-5 h-5 flex items-center justify-center -mr-2 -mt-2">
-                                {{ unread_notifications_count }}
-                            </span>
-                        {% endif %}
+{#                        {% if unread_notifications_count > 0 %}#}
+{#                            <span class="absolute top-0 right-0 text-xs text-red-500 font-bold bg-white rounded-full w-5 h-5 flex items-center justify-center -mr-2 -mt-2">#}
+{#                                {{ unread_notifications_count }}#}
+{#                            </span>#}
+{#                        {% endif %}#}
                     </a>
-                    <a href="{% url 'community' %}" class="text-gray-300 hover:text-white">Community</a>
                     <a href="{% url 'profile' %}" class="text-gray-300 hover:text-white">Profile</a>  <!-- ลิงก์ไปหน้าโปรไฟล์ของผู้ใช้ -->
                     <button id="logoutBtn" class="text-gray-300 hover:text-white">Signout</button>
                 {% else %}
@@ -86,4 +92,33 @@
             logoutDialog.classList.add('hidden');
         }
     });
+
+    function changeFontSize(action) {
+        let content = document.querySelector("body"); // เปลี่ยนจาก .max-w-4xl เป็น body เพื่อให้มีผลทั้งหน้า
+        let currentSize = parseFloat(window.getComputedStyle(content).fontSize);
+
+        if (action === 'increase') {
+            content.style.fontSize = (currentSize + 2) + "px";
+        } else if (action === 'decrease') {
+            content.style.fontSize = (currentSize - 2) + "px";
+        }
+
+        localStorage.setItem("fontSize", content.style.fontSize);
+    }
+
+    function resetFontSize() {
+        let content = document.querySelector("body");
+        content.style.fontSize = "16px"; // ค่าเริ่มต้น
+        localStorage.setItem("fontSize", "16px");
+    }
+
+    // โหลดค่าขนาดตัวอักษรที่บันทึกไว้
+    document.addEventListener("DOMContentLoaded", function () {
+        let savedSize = localStorage.getItem("fontSize");
+        if (savedSize) {
+            document.querySelector("body").style.fontSize = savedSize;
+        }
+    });
+
+
 </script>

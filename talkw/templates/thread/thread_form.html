@@ -1,109 +1,71 @@
 {% load static %}
-{% load static tailwind_tags %}
 {% include 'header.html' %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Thread</title>
+    <title>{% if object %}Edit{% else %}Create{% endif %} Thread</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 </head>
-<body class="bg-gray-100 p-8 mt-16">
-    <div class="max-w-2xl mx-auto">
-        <h1 class="text-2xl font-bold mb-4 ">{% if object %}Edit{% else %}Create{% endif %} Thread</h1>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl">
+        <h1 class="text-3xl font-bold text-gray-800 text-center mb-6">{% if object %}Edit{% else %}Create{% endif %} Thread</h1>
 
-{% if form.content.errors %}
-    <script>
-        Swal.fire({
-            title: "ข้อผิดพลาด!",
-            text: "{{ form.content.errors|join:'\n' }}",
-            icon: "error",
-            confirmButtonText: "ตกลง"
-        });
-    </script>
-{% endif %}
+        {% if form.content.errors %}
+            <script>
+                Swal.fire({
+                    title: "ข้อผิดพลาด!",
+                    text: "{{ form.content.errors|join:'\n' }}",
+                    icon: "error",
+                    confirmButtonText: "ตกลง"
+                });
+            </script>
+        {% endif %}
 
-
-
-
-        <form method="post" class="bg-white p-6 rounded shadow ">
+        <form method="post" class="space-y-6">
             {% csrf_token %}
-            <div class="mb-4">
-                <label class="block font-semibold">Title</label>
-                <div class="border border-gray-300 rounded">
+
+            <div>
+                <label class="block text-gray-700 font-semibold">Title</label>
+                <div class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-400">
                     {{ form.title }}
                 </div>
             </div>
-            <div class="mb-4">
-                <label class="block font-semibold">Content</label>
-                <div class="border border-gray-300 rounded">
+
+            <div>
+                <label class="block text-gray-700 font-semibold">Content</label>
+                <div class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-400">
                     {{ form.content }}
                 </div>
             </div>
 
-            <!-- Input สำหรับ Hashtag -->
-            <div class="mb-4">
-                <label class="block font-semibold">Hashtags</label>
-                <input type="text" name="hashtags" id="hashtags" class="w-full p-2 border border-gray-300 rounded" placeholder="ใส่ Hashtag คั่นด้วย , (เช่น #food, #travel)">
+            <div>
+                <label class="block text-gray-700 font-semibold">Hashtags</label>
+                <input type="text" name="hashtags" id="hashtags" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400" placeholder="ใส่ Hashtag คั่นด้วย , เช่น #food, #travel">
             </div>
 
-            <!-- เลือกจาก Hashtag ที่มีอยู่แล้ว -->
-            <div class="mb-4">
-                <label class="block font-semibold">Choose a Hashtag</label>
-                <select name="existing_hashtags" id="existing_hashtags" class="w-full p-2 border border-gray-300 rounded">
-                    <option value="">Select a Hashtag</option>
-                    {% for hashtag in hashtags %}
-                        <option value="{{ hashtag.id }}">{{ hashtag.name }}</option>
-                    {% endfor %}
-                </select>
+            <div class="flex justify-between items-center">
+                <a href="#" id="backLink" class="text-blue-500 hover:underline">Back</a>
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">{% if object %}Update{% else %}Create{% endif %}</button>
             </div>
-
-            <button type="submit"  class="bg-blue-500 text-white px-4 py-2 rounded">
-                {% if object %}Update{% else %}Create{% endif %}
-            </button>
         </form>
-
-        <!-- Link สำหรับย้อนกลับ -->
-        <a href="#" id="backLink" class="mt-4 inline-block text-gray-600">Back</a>
-
-        <!-- JavaScript alert เมื่อมีข้อความผิดพลาด -->
-        {% if error %}
-            <script>
-                alert("{{ error }}");
-            </script>
-        {% endif %}
-
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                var backLink = document.getElementById('backLink');
-                var submitButton = document.getElementById('submitButton');
-                var referrer = document.referrer;  // Get the referring URL
-
-                // ตรวจสอบว่า referrer มาจากหน้าไหน
-                if (referrer.includes('home')) {
-                    backLink.href = "{% url 'home' %}";
-                } else if (referrer.includes('profile')) {
-                    backLink.href = "{% url 'profile' %}";
-                } else {
-                    // ถ้าไม่ใช่หน้า home หรือ profile ก็ไปที่หน้า thread_list
-                    backLink.href = "{% url 'thread_list' %}";
-                }
-                // เมื่อกด Submit ให้กลับไปหน้าก่อนหน้า
-        submitButton.addEventListener('click', function(event) {
-            event.preventDefault();  // ป้องกันการส่งฟอร์มปกติ
-            var form = submitButton.closest('form'); // หา form ที่ใกล้ที่สุด
-            form.submit();  // ส่งฟอร์มตามปกติ
-
-            // กลับไปหน้าก่อนหน้า
-            setTimeout(function() {
-                window.location.href = backLink.href;
-            }, 100); // รอสักครู่ก่อนเปลี่ยนหน้า
-        });
-            });
-        </script>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var backLink = document.getElementById('backLink');
+            var referrer = document.referrer;
+
+            if (referrer.includes('home')) {
+                backLink.href = "{% url 'home' %}";
+            } else if (referrer.includes('profile')) {
+                backLink.href = "{% url 'profile' %}";
+            } else {
+                backLink.href = "{% url 'thread_list' %}";
+            }
+        });
+    </script>
 </body>
 </html>

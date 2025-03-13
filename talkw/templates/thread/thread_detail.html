@@ -73,12 +73,19 @@
                     {% endautoescape %}
                 </div>
 
-  <!-- Comment Box -->
-<div class="bg-gray-100 border border-gray-300  rounded-lg p-4 mb-4 mt-2">
-    <p class="text-md font-medium text-gray-700 cursor-pointer hover:text-gray-900" onclick="openCommentModal({{ thread.pk }})">
-        Comment
-    </p>
+<!-- Comment Box -->
+<div class="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 mt-2">
+    {% if user.is_authenticated %}
+        <p class="text-md font-medium text-gray-700 cursor-pointer hover:text-gray-900" onclick="openCommentModal({{ thread.pk }})">
+            Comment
+        </p>
+    {% else %}
+        <a href="{% url 'signin' %}" class="text-md font-medium text-gray-700 cursor-pointer hover:text-gray-900">
+            Please sign in to comment
+        </a>
+    {% endif %}
 </div>
+
 <!-- Comments Section -->
 <div class="mt-2">
     <h3 class="font-semibold text-lg">
@@ -163,12 +170,6 @@
                             <h2 class="font-md text-lg text-gray-800">{{ other_thread.title }}</h2>
                             <a href="{% url 'thread_detail' pk=other_thread.pk %}" class="text-blue-500 mt-2 inline-block">Read more</a>
 
-                         <!-- Comment Box -->
-<div class="bg-gray-100 border border-gray-300  rounded-lg p-4 mb-4 mt-2">
-    <p class="text-md font-medium text-gray-700 cursor-pointer hover:text-gray-900" onclick="openCommentModal({{ thread.pk }})">
-        Comment
-    </p>
-</div>
                         </div>
                     {% endfor %}
 
@@ -250,56 +251,72 @@
         });
     }
 
-    function openCommentModal(threadId) {
-        Swal.fire({
-            title: "Add a Comment",
-            html: `
-                <textarea id="comment-text" class="swal2-textarea" placeholder="Enter your comment" rows="4"></textarea>
-            `,
-            showCancelButton: true,
-            confirmButtonText: "Post Comment",
-            cancelButtonText: "Cancel",
-            customClass: {
-                confirmButton: 'btn-blue',
-            },
-            preConfirm: () => {
-                const comment = document.getElementById("comment-text").value;
-                if (!comment) {
-                    Swal.showValidationMessage("Please enter a comment.");
-                    return false;
+function openCommentModal(threadId) {
+    Swal.fire({
+        title: "Add a Comment",
+        html: `
+            <textarea id="comment-text" class="swal2-textarea" placeholder="Enter your comment" rows="4"></textarea>
+        `,
+        showCancelButton: true,
+        confirmButtonText: "Post Comment",
+        cancelButtonText: "Cancel",
+        customClass: {
+            confirmButton: 'btn-blue',
+        },
+        preConfirm: () => {
+            const comment = document.getElementById("comment-text").value;
+            if (!comment) {
+                Swal.showValidationMessage("Please enter a comment.");
+                return false;
+            }
+
+            // ส่งข้อมูลคอมเมนต์
+            const formData = new FormData();
+            formData.append("content", comment);
+
+            // ใช้ CSRF Token ด้วย
+            const csrfToken = "{{ csrf_token }}";
+            formData.append("csrfmiddlewaretoken", csrfToken);
+
+            // ใช้ fetch เพื่อส่งคอมเมนต์
+            return fetch(`/comment/${threadId}/`, {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-CSRFToken": csrfToken // CSRF Token ที่ถูกต้อง
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.error || "Failed to post comment.");
                 }
 
-                // ส่งข้อมูลคอมเมนต์
-                const formData = new FormData();
-                formData.append("content", comment);
+                // ใช้ SweetAlert เพื่อแสดงข้อความสำเร็จ
+                Swal.fire({
+                    title: "Comment Posted!",
+                    text: "Your comment has been posted.",
+                    icon: "success",
+                    timer: 1500,  // ปรับเวลาการแสดงข้อความเป็น 1.5 วินาที
+                    showConfirmButton: false
+                }).then(() => {
+                    // เพิ่มคอมเมนต์ใหม่ในหน้าเว็บโดยไม่ต้องรีเฟรช
+                    const newCommentHtml = `
+                        <div class="bg-gray-50 border p-4 rounded-lg shadow-sm">
+                            <p class="text-gray-800">${comment}</p>
+                            <p class="text-xs text-gray-500 mt-2">Posted by ${data.username} on ${data.created_at}</p>
+                        </div>
+                    `;
+                    document.querySelector(".space-y-4.mt-4").insertAdjacentHTML('beforeend', newCommentHtml);
+                });
+            })
+            .catch(error => {
+                Swal.fire("Error!", error.message, "error");
+            });
+        }
+    });
+}
 
-                // ใช้ CSRF Token ด้วย
-                const csrfToken = "{{ csrf_token }}";
-                formData.append("csrfmiddlewaretoken", csrfToken);
-
-                // JavaScript
-return fetch(`/add-comment/${threadId}/`, {  // ปรับ URL ให้ตรงกับที่ตั้งใน urls.py
-    method: "POST",
-    body: formData,
-    headers: {
-        "X-CSRFToken": csrfToken // ให้แน่ใจว่า csrfToken ถูกต้องและมีค่า
-    }
-})
-.then(response => response.json())
-.then(data => {
-    if (!data.success) {
-        throw new Error(data.error || "Failed to post comment.");
-    }
-    Swal.fire("Comment Posted!", "Your comment has been posted.", "success");
-    location.reload();
-})
-.catch(error => {
-    Swal.fire("Error!", error.message, "error");
-});
-
-            }
-        });
-    }
     function confirmDelete(threadId) {
     Swal.fire({
         title: "Are you sure?",

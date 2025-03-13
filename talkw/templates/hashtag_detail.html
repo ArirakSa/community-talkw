@@ -28,8 +28,9 @@
                             <div id="dropdown-{{ thread.pk }}" class="absolute right-0 mt-8 w-32 bg-white border border-gray-300 rounded-lg shadow-lg hidden z-10">
                                 {% if user == thread.author %}
                                     <a href="{% url 'thread_edit' pk=thread.pk %}" class="block px-4 py-2 text-yellow-500 hover:bg-gray-100">Edit</a>
-                                    <a href="{% url 'thread_delete' pk=thread.pk %}" class="block px-4 py-2 text-red-500 hover:bg-gray-100">Delete</a>
-                                {% else %}
+<a href="#" onclick="confirmDelete({{ thread.pk }})" class="block px-4 py-2 text-red-500 hover:bg-gray-100">
+    Delete
+</a>                                {% else %}
                                     <button type="button" onclick="openReportModal({{ thread.pk }})" class="block w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100">
                                         Report
                                     </button>
@@ -162,6 +163,7 @@
 
     const csrfToken = "{{ csrf_token }}";
 
+
     function openCommentModal(threadId) {
         Swal.fire({
             title: "Add a Comment",
@@ -185,13 +187,13 @@
                 const formData = new FormData();
                 formData.append("content", commentContent);
 
-                formData.append("csrfmiddlewaretoken", csrfToken);
+                formData.append("csrfmiddlewaretoken", csrfToken); // เพิ่ม CSRF token
 
-                return fetch(`/thread/${threadId}/comment/`, {
+                return fetch(`/thread/${threadId}/comment/`, {  // URL ให้ถูกต้อง
                     method: "POST",
                     body: formData,
                     headers: {
-                        "X-CSRFToken": csrfToken
+                        "X-CSRFToken": csrfToken  // เพิ่ม CSRF token ใน header
                     }
                 })
                 .then(response => response.json())
@@ -207,6 +209,37 @@
             }
         });
     }
+       function confirmDelete(threadId) {
+    Swal.fire({
+        title: "Are you sure?",
+        text: "This action cannot be undone!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete it!"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const formData = new FormData();
+            formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+            fetch(`/thread/${threadId}/delete/`, {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire("Deleted!", "The thread has been deleted.", "success")
+                        .then(() => location.reload());
+                } else {
+                    Swal.fire("Error!", "Failed to delete thread.", "error");
+                }
+            })
+            .catch(error => Swal.fire("Error!", "Something went wrong.", "error"));
+        }
+    });
+}
 </script>
 
 <!-- เพิ่ม CSS เพื่อปรับแต่งปุ่ม -->

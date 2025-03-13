@@ -28,6 +28,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+LOGIN_URL = '/admin-signin/'
+
 
 # Application definition
 
@@ -95,7 +97,7 @@ AUTH_USER_MODEL = 'talkw.CustomUser'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'talkw',
+        'NAME': 'dssi-prj',
         'USER': 'root',
         'PASSWORD': 'root',
         'HOST': '127.0.0.1',  # หรือที่อยู่ของเซิร์ฟเวอร์ MySQL

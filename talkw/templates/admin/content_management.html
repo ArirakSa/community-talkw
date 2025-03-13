@@ -1,15 +1,6 @@
-<!DOCTYPE html>
-{% include 'admin/admin_taskbar.html' %}
+{% extends 'admin/admin_taskbar.html' %}
 
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Content Management</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-
+{% block content %}
     <div class="container mx-auto p-4">
         <h1 class="text-xl mb-4">Content Management</h1>
 
@@ -19,13 +10,7 @@
         <!-- ลิงก์ไปที่หน้าเพิ่มบทความ -->
         <a href="{% url 'add_article' %}" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 inline-block">Add New Article</a>
 
-        <!-- Dropdown สำหรับเลือกเนื้อหาที่เป็นบทความ -->
-        <select class="mb-4 p-2 border rounded">
-            <option value="">Select Article</option>
-            {% for content in contents %}
-                <option value="{{ content.id }}">{{ content.title }}</option>
-            {% endfor %}
-        </select>
+        <a href="{% url 'add_badword' %}" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 inline-block">Add New Badword</a>
 
         <table class="w-full table-auto border-collapse border border-gray-300">
             <thead>
@@ -38,19 +23,52 @@
             </thead>
             <tbody>
                 {% for content in contents %}
-                    <tr>
+                    {% if content.title %}
+                    <tr id="content-{{ content.id }}">
                         <td class="px-4 py-2 border-b">{{ content.title }}</td>
-                        <td class="px-4 py-2 border-b">{{ content.created_by }}</td>
+                        <td class="px-4 py-2 border-b">{{ content.created_by.username }}</td>
                         <td class="px-4 py-2 border-b">{{ content.created_at }}</td>
                         <td class="px-4 py-2 border-b">
                             <a href="{% url 'content_edit' content.id %}" class="text-blue-600 hover:underline">Edit</a>
-                            <a href="{% url 'content_delete' content.id %}" class="text-red-600 hover:underline">Delete</a>
+                            <a href="javascript:void(0);" class="text-red-600 hover:underline" onclick="deleteContent({{ content.id }}, event)">Delete</a>
                         </td>
                     </tr>
+                    {% endif %}
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
-</body>
-</html>
+    <script>
+        function deleteContent(contentId, event) {
+            event.preventDefault();  // ป้องกันไม่ให้หน้าเว็บทำการรีเฟรช
+
+            if (confirm('Are you sure you want to delete this content?')) {
+                fetch(`/admin/content/delete/${contentId}/`, {
+                    method: 'POST',  // ส่งคำขอแบบ POST
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',  // CSRF token
+                        'Content-Type': 'application/json'  // กำหนด Content-Type เป็น JSON
+                    },
+                    body: JSON.stringify({})  // ใช้ body ถ้าจำเป็นต้องส่งข้อมูลอื่นๆ
+                })
+                .then(response => {
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.message === 'Content deleted successfully') {
+                        // ลบแถวเนื้อหาจากตาราง
+                        document.getElementById(`content-${contentId}`).remove();
+                        alert(data.message);
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while deleting the content.');
+                });
+            }
+        }
+    </script>
+{% endblock %}

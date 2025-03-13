@@ -3,34 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
+  <title>Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
+  <div class="flex h-screen">
 
-  <!-- Header (sticky) -->
-  <header class="bg-gray-800 text-white shadow-md sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-      <h1 class="text-xl font-bold">Admin Dashboard</h1>
-      <!-- ถ้าต้องการเพิ่มเมนูหรือปุ่มอื่นๆ ให้เพิ่มที่นี่ -->
-    </div>
-  </header>
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-800 text-white flex flex-col h-screen fixed">
+      <div class="p-6 flex-1">
+        <h2 class="text-2xl font-semibold mb-8">Admin</h2>
+        <ul class="space-y-4">
+          <li>
+            <a href="{% url 'admin_dashboard' %}" class="block py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'user_management' %}" class="block py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">
+              User Management
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'content_management' %}" class="block py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">
+              Content Management
+            </a>
+          </li>
+        </ul>
+      </div>
 
-  <div class="flex">
-    <!-- Sidebar (sticky) -->
-    <aside class="w-25 bg-gray-700 text-white min-h-screen  p-4 sticky top-16">
-      <ul class="space-y-4">
-        <li>
-          <a href="{% url 'admin_dashboard' %}" class="block py-2 px-4 rounded hover:bg-gray-600 transition">Dashboard</a>
-        </li>
-        <li>
-          <a href="{% url 'user_management' %}" class="block py-2 px-4 rounded hover:bg-gray-600 transition">User Management</a>
-        </li>
-        <li>
-          <a href="{% url 'content_management' %}" class="block py-2 px-4 rounded hover:bg-gray-600 transition">Content Management</a>
-        </li>
-      </ul>
+      <!-- Sign Out Button at the bottom -->
+      <div class="mt-auto p-6">
+        <form action="{% url 'admin_signout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" id="logoutBtn" class="w-full py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+            Sign Out
+          </button>
+        </form>
+      </div>
     </aside>
 
+    <!-- Main Content -->
+    <div class="flex-1 p-6 pl-64 overflow-auto">
+      {% block content %}
+      <!-- Content of the page goes here -->
+      {% endblock %}
+    </div>
 </body>
 </html>

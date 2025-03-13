@@ -1,10 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+{% include 'admin/admin_taskbar.html' %}
+
+<html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Article</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4">
+        <h1 class="text-xl mb-4">Edit Article: {{ object.title }}</h1>
+
+        <form method="POST">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded mt-4">Save Changes</button>
+        </form>
+
+        <a href="{% url 'content_management' %}" class="bg-gray-600 text-white px-4 py-2 rounded mt-4 inline-block">Cancel</a>
+    </div>
 
 </body>
 </html>

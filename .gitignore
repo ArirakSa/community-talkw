@@ -1,0 +1,14 @@
+# PyCharm settings
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Django media files
+/media/
+
+# Django migrations cache
+talkw/migrations/__pycache__/
+
+/.venv

@@ -1,53 +1,47 @@
 from datetime import timezone
-
 from django.contrib.auth.views import *
 from django.core.checks import messages
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate, logout
-from django.contrib.auth.forms import AuthenticationForm
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.utils.safestring import mark_safe
 from django.views.generic import *
 from .forms import *
 from .models import *
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.urls import reverse_lazy
 from django.views.generic import UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import redirect
-from django.db.models import Q
-from django.urls import reverse
-import re
-from django.http import JsonResponse
+import re, json
+from django.http import JsonResponse, HttpResponseRedirect
 from django.views import View
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-from .models import ReportThread, Thread
 from django.contrib import messages
 
 
-# -------------------------
-# 🔹 Home Page (CBV)
-# -------------------------
+
+#  Home Page (CBV)
 class HomeView(ListView):
     model = Thread
     template_name = "home.html"
     context_object_name = 'threads'  # กำหนดชื่อ context ที่จะใช้ในเทมเพลต
 
     def get_queryset(self):
-        # กรอง Thread ตาม Hashtag หากมี
-        hashtag_name = self.kwargs.get('hashtag_name', None)
-        if hashtag_name:
-            return Thread.objects.filter(hashtags__name=hashtag_name).order_by('-created_at')
         return Thread.objects.all().order_by('-created_at')
-
 
 class ContentView(TemplateView):
     template_name = "content.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # ดึงบทความทั้งหมดหรือบทความที่คุณต้องการแสดง
+        context['articles'] = Article.objects.all()  # หรือจะใช้ filter หากต้องการเลือกบทความเฉพาะ
+        return context
 # -------------------------
-# 🔹 Authentication Views (CBV)
-# -------------------------
+#  Authentication Views (CBV)
+
 class SignUpView(CreateView):
     model = CustomUser
     form_class = CustomUserCreationForm
@@ -56,10 +50,11 @@ class SignUpView(CreateView):
 
 class SignInView(LoginView):
     template_name = "signin.html"
-
+    def form_invalid(self, form):
+        messages.error(self.request, "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
+        return super().form_invalid(form)
     def get_success_url(self):
         next_url = self.request.GET.get("next")
-
         if self.request.user.is_authenticated:  # ตรวจสอบว่าผู้ใช้ล็อคอินแล้ว
             if self.request.user.role == 'user':
                 if next_url:
@@ -73,32 +68,9 @@ class SignInView(LoginView):
             messages.error(self.request, "กรุณาล็อคอินก่อนเข้าสู่ระบบ")
             return reverse_lazy('signin')
 
-class AdminSignInView(LoginView):
-    template_name = "admin/admin_signin.html"
-
-    def get_success_url(self):
-        next_url = self.request.GET.get("next")
-
-        if self.request.user.is_authenticated:  # ตรวจสอบว่าผู้ใช้ล็อคอินแล้ว
-            if self.request.user.role == 'admin':
-                if next_url:
-                    return next_url
-                else:
-                    return reverse_lazy('admin_dashboard')
-            else:
-                messages.error(self.request, "กรุณาล็อคอินด้วยบัญชีแอดมิน")
-                return reverse_lazy('signin')
-        else:
-            messages.error(self.request, "กรุณาล็อคอินก่อนเข้าสู่ระบบ")
-            return reverse_lazy('signin')
-
-
 class SignOutView(LogoutView):
-    print("ออกแล้ววว")
     next_page = reverse_lazy('signin')
 
-class AdminSignOutView(LogoutView):
-    next_page = reverse_lazy('admin_signin')
 
 # -------------------------
 # 🔹 Profile Views (CBV)
@@ -119,14 +91,12 @@ class ProfileView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # เพิ่ม threads ของผู้ใช้เข้าไปใน context
-        context['threads'] = self.get_object().threads.all()
+        context['threads'] = self.get_object().threads.all().order_by('-created_at')
         return context
 
 
-
-
 @method_decorator(login_required, name="dispatch")
-class EditProfileView(LoginRequiredMixin, View):
+class EditProfileView(View):
     def get(self, request):
         form = EditProfileForm(instance=request.user)
         return render(request, "edit_profile.html", {"form": form})
@@ -139,10 +109,7 @@ class EditProfileView(LoginRequiredMixin, View):
         return render(request, "edit_profile.html", {"form": form})
 
 # -------------------------
-# 🔹 Thread Views (CBV)
-# -------------------------
-
-
+#  Thread Views (CBV)
 
 class SearchResultsView(ListView):
     model = Thread
@@ -173,7 +140,6 @@ class ThreadCreateView(LoginRequiredMixin, CreateView):
     model = Thread
     form_class = ThreadForm
     template_name = 'thread/thread_form.html'
-    success_url = reverse_lazy('home')  # กลับหน้า home หลังจากโพสต์เสร็จ
 
     def form_valid(self, form):
         # กำหนด author ของกระทู้
@@ -190,95 +156,21 @@ class ThreadCreateView(LoginRequiredMixin, CreateView):
                 return self.form_invalid(form)
 
             # ใช้ regex ดึง Hashtags
-            hashtags = set(re.findall(r'#(\w+)', content))  # ใช้ # แล้วตามด้วยคำที่ไม่มีช่องว่าง
-
+            hashtags = set(re.findall(r'#([\wก-๙]+)', content, re.UNICODE))
             # บันทึกกระทู้
             thread = form.save()
 
             # เชื่อมโยง hashtags ที่พบในเนื้อหาของกระทู้
             for hashtag in hashtags:
                 clean_hashtag = hashtag.lower()  # แปลงเป็นตัวพิมพ์เล็กเพื่อป้องกันซ้ำ
-                hashtag_obj, created = Hashtag.objects.get_or_create(name=clean_hashtag)
+                hashtag_obj, created = Hashtag.objects.get_or_create(name=clean_hashtag())
                 thread.hashtags.add(hashtag_obj)
 
-        return super().form_valid(form)
+        # ดึงค่าจาก next parameter ถ้ามี
+        next_url = self.request.GET.get('next', reverse_lazy('home'))
 
-
-
-
-
-class ThreadCreateView2(LoginRequiredMixin, CreateView):
-    model = Thread
-    form_class = ThreadForm
-    template_name = 'thread/thread_form.html'
-    success_url = reverse_lazy('home')  # กลับหน้า home หลังจากโพสต์เสร็จ
-
-    def form_valid(self, form):
-        # กำหนด author ของกระทู้
-        form.instance.author = self.request.user
-
-        # ดึง content จากฟอร์ม
-        content = form.cleaned_data.get('content', '')
-
-        if content:
-            # ตรวจสอบคำหยาบในเนื้อหาของกระทู้
-            if check_bad_words(content):
-                # หากพบคำหยาบ ให้เพิ่ม error และไม่ให้บันทึกกระทู้
-                form.add_error('content', 'กระทู้นี้มีคำหยาบโปรดแก้ไข')
-                return self.form_invalid(form)
-
-            # ใช้ regex ดึง Hashtags
-            hashtags = set(re.findall(r'#+(\w+)', content))
-
-            # บันทึกกระทู้
-            thread = form.save()
-
-            # เชื่อมโยง hashtags ที่พบในเนื้อหาของกระทู้
-            for hashtag in hashtags:
-                clean_hashtag = hashtag.lower()  # แปลงเป็นตัวพิมพ์เล็กเพื่อป้องกันซ้ำ
-                hashtag_obj, created = Hashtag.objects.get_or_create(name=clean_hashtag)
-                thread.hashtags.add(hashtag_obj)
-
-        return super().form_valid(form)
-
-
-class ThreadCreateView1(LoginRequiredMixin, CreateView):
-    model = Thread
-    form_class = ThreadForm
-    template_name = 'thread/thread_form.html'
-    success_url = reverse_lazy('home')  # กลับหน้า home หลังจากโพสต์เสร็จ
-
-    def form_valid(self, form):
-        # กำหนด author ของกระทู้
-        form.instance.author = self.request.user
-
-        # ดึงเนื้อหาของกระทู้
-        content = form.cleaned_data.get('content', '')
-
-        # ดึงคำหยาบทั้งหมดจากฐานข้อมูล (สมมติว่า model BannedWord มี field 'word')
-        banned_words = list(BannedWord.objects.values_list('word', flat=True))
-
-        # ตรวจสอบว่ามีคำหยาบอยู่ในเนื้อหาหรือไม่
-        for banned in banned_words:
-            # ใช้ re.escape เพื่อหลีกเลี่ยง special characters ใน banned word
-            pattern = re.compile(re.escape(banned), re.IGNORECASE)
-            if pattern.search(content):
-                form.add_error('content', f'เนื้อหาของคุณมีคำที่ไม่เหมาะสม: "{banned}" ไม่อนุญาตให้ใช้')
-                return self.form_invalid(form)
-
-        # ดึง Hashtags จากเนื้อหา โดยใช้ regex (ค้นหาคำที่ขึ้นต้นด้วย '#' ตามด้วยตัวอักษรหรือตัวเลข)
-        hashtags = set(re.findall(r'#+(\w+)', content))
-
-        # บันทึกกระทู้
-        thread = form.save()
-
-        # เชื่อมโยง Hashtags ที่พบในเนื้อหาของกระทู้
-        for hashtag in hashtags:
-            clean_hashtag = hashtag.lower()  # แปลงเป็นตัวพิมพ์เล็กเพื่อป้องกันซ้ำ
-            hashtag_obj, created = Hashtag.objects.get_or_create(name=clean_hashtag)
-            thread.hashtags.add(hashtag_obj)
-
-        return super().form_valid(form)
+        # Redirect ไปยัง URL ที่เก็บใน next หรือ fallback ไปที่หน้า home
+        return HttpResponseRedirect(next_url)
 
 
 class ThreadListView(ListView):
@@ -303,7 +195,7 @@ class ThreadDetailView(DetailView):
     def get(self, request, *args, **kwargs):
         thread = self.get_object()
 
-        # ✅ อัปเดตแจ้งเตือนที่เกี่ยวข้องกับโพสต์นี้ให้เป็น "อ่านแล้ว"
+        #อัปเดตแจ้งเตือนที่เกี่ยวข้องกับโพสต์นี้ให้เป็น "อ่านแล้ว"
         if request.user.is_authenticated:
             Notification.objects.filter(user=request.user, thread=thread, is_read=False).update(is_read=True)
 
@@ -370,12 +262,12 @@ class CommunityView(ListView):
         # ดึง popular hashtags ที่มีการใช้งานใน threads โดยจัดเรียงตามจำนวน threads ที่เกี่ยวข้อง
         context['popular_hashtags'] = Hashtag.objects.annotate(
             thread_count=Count('threads')
-        ).order_by('-thread_count')[:20]  # เอา 20 อันดับแฮชแท็กที่ใช้บ่อย
+        ).filter(thread_count__gt=0).order_by('-thread_count')[:20]  # เอา 20 อันดับแฮชแท็กที่ใช้บ่อย
 
         return context
 
 
-class HashtagDetailView(LoginRequiredMixin, DetailView):
+class HashtagDetailView(DetailView):
     model = Hashtag
     template_name = 'hashtag_detail.html'
 
@@ -386,23 +278,48 @@ class HashtagDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-
 class ThreadUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Thread
     form_class = ThreadForm
     template_name = 'thread/thread_form.html'
 
     def test_func(self):
+        # ตรวจสอบว่าเป็นเจ้าของกระทู้หรือไม่
         thread = self.get_object()
         return self.request.user == thread.author
 
-    def get_success_url(self):
-        return reverse_lazy('profile')
+    def form_valid(self, form):
+
+        # ดึง content จากฟอร์ม
+        content = form.cleaned_data.get('content', '')
+
+        if content:
+            # ตรวจสอบคำหยาบในเนื้อหาของกระทู้
+            if check_bad_words(content):
+                # หากพบคำหยาบ ให้เพิ่ม error และไม่ให้บันทึกกระทู้
+                form.add_error('content', 'กระทู้นี้มีคำหยาบโปรดแก้ไข')
+                return self.form_invalid(form)
+
+            # ใช้ regex ดึง Hashtags
+            hashtags = set(re.findall(r'#([\wก-๙]+)', content, re.UNICODE))
+            # บันทึกกระทู้
+            thread = form.save()
+
+            # เชื่อมโยง hashtags ที่พบในเนื้อหาของกระทู้
+            for hashtag in hashtags:
+                clean_hashtag = hashtag.lower()  # แปลงเป็นตัวพิมพ์เล็กเพื่อป้องกันซ้ำ
+                hashtag_obj, created = Hashtag.objects.get_or_create(name=clean_hashtag())
+                thread.hashtags.add(hashtag_obj)
+
+        # ดึงค่าจาก next parameter ถ้ามี
+        next_url = self.request.GET.get('next', reverse_lazy('home'))
+
+        # Redirect ไปยัง URL ที่เก็บใน next หรือ fallback ไปที่หน้า home
+        return HttpResponseRedirect(next_url)
 
 
 class ThreadDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Thread
-    success_url = reverse_lazy('profile')
 
     def test_func(self):
         thread = self.get_object()
@@ -434,150 +351,53 @@ class ReportThreadView(LoginRequiredMixin, View):
 
 
 
-
-
-
-class CommentCreateView1(LoginRequiredMixin, View):
-    def post(self, request, thread_id):
-        content = request.POST.get("content", "").strip()
-        if not content:
-            return JsonResponse({"success": False, "error": "Comment cannot be empty."}, status=400)
-
-        thread = Thread.objects.get(pk=thread_id)
-        comment = Comment.objects.create(
-            thread=thread,
-            content=content,
-            author=request.user
-        )
-
-        return JsonResponse({"success": True})
-
-
-
 class CommentCreateView(LoginRequiredMixin, View):
     def post(self, request, thread_id):
-        # รับข้อมูลคอมเมนต์จาก request
         content = request.POST.get('content', '').strip()
-
-        # ถ้า content ว่างหรือไม่ถูกต้อง
         if not content:
             return JsonResponse({"success": False, "error": "Comment cannot be empty."}, status=400)
 
-        # ค้นหากระทู้
+        if check_bad_words(content):
+            return JsonResponse({"success": False, "error": "มีคำหยาบ โปรดทำการแก้ไข"}, status=400)
+
         thread = get_object_or_404(Thread, pk=thread_id)
+        comment = Comment.objects.create(thread=thread, content=content, author=request.user)
 
-        # สร้าง comment ใหม่
-        comment = Comment.objects.create(
-            thread=thread,
-            content=content,
-            author=request.user
-        )
-
-        # แจ้งเตือนเฉพาะกรณีที่เจ้าของกระทู้ไม่ใช่คนที่คอมเมนต์
+        # แจ้งเตือนเฉพาะเจ้าของกระทู้
         if request.user != thread.author:
-            notification_message = f'{request.user.username} commented on your thread: "{thread.title}"'
             Notification.objects.create(
                 sender=request.user,
-                user=thread.author,  # เจ้าของกระทู้
-                message=notification_message,
-                thread=thread,
-                is_read=False
+                user=thread.author,
+                message=f'{request.user.username} commented on your thread: "{thread.title}"',
+                thread=thread
             )
 
-        # ตอบกลับด้วย JsonResponse
-        return JsonResponse({"success": True, "message": "Comment added successfully."})
+        return JsonResponse({
+            "success": True,
+            "message": "Comment added successfully.",
+            "comment": {
+                "author": comment.author.username,
+                "content": comment.content,
+                "created_at": comment.created_at.strftime('%Y-%m-%d %H:%M')
+            }
+        })
 
-
-class NotificationListView1(LoginRequiredMixin, ListView):
-    model = Notification
-    template_name = "notifications.html"
-    context_object_name = "notifications"
-
-    def get_queryset(self):
-        # ฟิลเตอร์ข้อมูลให้แสดงเฉพาะ notification ของผู้ใช้ที่ล็อกอินอยู่
-        return Notification.objects.filter(user=self.request.user).order_by("-created_at")
-
-
-
-# สร้าง Notification ใหม่
-class CreateNotificationView(LoginRequiredMixin, View):
-    def post(self, request, thread_id):
-        thread = Thread.objects.get(id=thread_id)  # ดึง thread จาก id
-        user = request.user  # ผู้ใช้ที่ล็อกอิน
-        message = request.POST['message']  # ข้อความคอมเมนต์ที่ผู้ใช้กรอก
-
-        # สร้าง comment ใหม่
-        comment = Comment.objects.create(
-            thread=thread,
-            user=user,
-            message=message,
-            created_at=timezone.now()
-        )
-
-        # สร้าง Notification สำหรับผู้ที่เป็นเจ้าของ thread
-        notification = Notification.objects.create(
-            sender=user,
-            user=thread.user,  # ผู้ที่เป็นเจ้าของกระทู้
-            message=f'{user.username} commented on your thread: {message}',
-            thread=thread,
-            is_read=False,
-        )
-        return JsonResponse({'success': True, 'message': 'Notification sent and comment added.'})
 
 
 # View สำหรับการ Mark Notification เป็นอ่าน
-class MarkNotificationAsReadView(LoginRequiredMixin, View):
-    def post(self, request, notification_id):
-        try:
-            # ดึง Notification ตาม id และ user
-            notification = Notification.objects.get(id=notification_id, user=request.user)
-            notification.is_read = True
-            notification.save(update_fields=['is_read'])
-            return JsonResponse({'success': True})
-        except Notification.DoesNotExist:
-            return JsonResponse({'success': False}, status=404)
+# class MarkNotificationAsReadView(LoginRequiredMixin, View):
+#     def post(self, request, notification_id):
+#         try:
+#             # ดึง Notification ตาม id และ user
+#             notification = Notification.objects.get(id=notification_id, user=request.user)
+#             notification.is_read = True
+#             notification.save(update_fields=['is_read'])
+#             return JsonResponse({'success': True})
+#         except Notification.DoesNotExist:
+#             return JsonResponse({'success': False}, status=404)
 
 
 # แสดงรายการแจ้งเตือน
-class NotificationListView1(LoginRequiredMixin, ListView):
-    model = Notification
-    template_name = "notifications.html"
-    context_object_name = "notifications"
-
-    def get_queryset(self):
-        # ฟิลเตอร์ข้อมูลให้แสดงเฉพาะ notification ของผู้ใช้ที่ล็อกอินอยู่
-        notifications = Notification.objects.filter(user=self.request.user).order_by("-created_at")
-        return notifications
-
-    def get_context_data(self, **kwargs):
-        # เพิ่มการนับจำนวน notification ที่ยังไม่ได้อ่าน
-        context = super().get_context_data(**kwargs)
-        unread_notifications_count = Notification.objects.filter(user=self.request.user, is_read=False).count()
-        context['unread_notifications_count'] = unread_notifications_count
-        return context
-
-
-class NotificationListView2(LoginRequiredMixin, ListView):
-    model = Notification
-    template_name = "notifications.html"
-    context_object_name = "notifications"
-
-    def get_queryset(self):
-        # ฟิลเตอร์ข้อมูลให้แสดงเฉพาะ notification ของผู้ใช้ที่ล็อกอินอยู่
-        return Notification.objects.filter(user=self.request.user).order_by("-created_at")
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        # การนับจำนวน notification ที่ยังไม่ได้อ่าน
-        unread_notifications_count = Notification.objects.filter(user=self.request.user, is_read=False).count()
-        context['unread_notifications_count'] = unread_notifications_count
-
-        # อัปเดตสถานะ notification เป็นอ่านแล้ว (is_read = True) เมื่อเข้ามาที่หน้า
-        Notification.objects.filter(user=self.request.user, is_read=False).update(is_read=True)
-
-        return context
-
 class NotificationListView(LoginRequiredMixin, ListView):
     model = Notification
     template_name = "notifications.html"
@@ -595,61 +415,212 @@ class NotificationListView(LoginRequiredMixin, ListView):
         context['unread_notifications_count'] = unread_notifications_count
         return context
 
-# -------------------------
-# 🔹 Admin Views (CBV)
-# -------------------------
 
-class AdminDashboardView(TemplateView):
+# -------------------------
+#  Admin Views (CBV)
+
+class AdminSignInView(LoginView):
+    template_name = "admin/admin_signin.html"
+
+    def get_success_url(self):
+        next_url = self.request.GET.get("next")
+
+        if self.request.user.is_authenticated:  # ตรวจสอบว่าผู้ใช้ล็อคอินแล้ว
+            if self.request.user.role == 'admin': # ตรวจสอบว่าผู้ใช้เป็น admin
+                if next_url:
+                    return next_url # หากมี next_url ให้ไปที่หน้า next_url
+                else:
+                    return reverse_lazy('admin_dashboard') # รีไดเรกต์ไปที่ Admin Dashboard
+            else:
+                messages.error(self.request, "กรุณาล็อคอินด้วยบัญชีแอดมิน")
+                return reverse_lazy('admin_signin')
+        else:
+            messages.error(self.request, "กรุณาล็อคอินก่อนเข้าสู่ระบบ")
+            return reverse_lazy('admin_signin')
+
+
+class AdminSignOutView(LogoutView):
+    next_page = reverse_lazy('admin_signin')
+
+
+from django.db.models import Count
+from collections import Counter
+import json
+
+class AdminDashboardView1(LoginRequiredMixin, TemplateView):
     template_name = "admin/admin_dashboard.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or request.user.role != "admin":
+            messages.error(request, "คุณไม่มีสิทธิ์เข้าถึงหน้านี้")
+            return redirect('home')  # เปลี่ยนไปหน้าที่ต้องการ
+        return super().dispatch(request, *args, **kwargs)
 
-class UserManagementView(TemplateView):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get user categories count
+        user_categories_count = list(CustomUser.objects.filter(role='user')
+                                     .values('user_category')
+                                     .annotate(count=models.Count('user_category'))
+                                     .order_by('user_category'))
+        context['user_categories'] = json.dumps(user_categories_count)
+
+        # Get total users
+        context['total_users'] = CustomUser.objects.filter(role='user').count()
+
+        # Get total content (articles)
+        context['total_content'] = Article.objects.count()
+
+        # Get total number of posts (articles)
+        context['total_posts'] = Article.objects.count()
+
+        # Get top 7 most used hashtags
+        hashtags = Hashtag.objects.values('name').annotate(tag_count=Count('name')).order_by('-tag_count')[:7]
+        context['top_hashtags'] = json.dumps(list(hashtags))
+
+        return context
+
+from django.contrib.auth.mixins import PermissionRequiredMixin
+
+class AdminDashboardView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    template_name = "admin/admin_dashboard.html"
+    permission_required = "is_admin"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        user_categories_count = (
+            CustomUser.objects.filter(role='user')
+            .values('user_category')
+            .annotate(count=models.Count('user_category'))
+            .order_by('user_category')
+        )
+        context['user_categories'] = json.dumps(list(user_categories_count))
+
+        context.update({
+            'total_users': CustomUser.objects.filter(role='user').count(),
+            'total_content': Article.objects.count(),
+            'total_posts': Article.objects.count(),
+            'top_hashtags': json.dumps(list(
+                Hashtag.objects.values('name')
+                .annotate(tag_count=Count('name'))
+                .order_by('-tag_count')[:7]
+            )),
+        })
+        return context
+
+
+class UserManagementView(LoginRequiredMixin, TemplateView):
     template_name = "admin/user_management.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or request.user.role != "admin":
+            messages.error(request, "คุณไม่มีสิทธิ์เข้าถึงหน้านี้")
+            return redirect('home')
+        return super().dispatch(request, *args, **kwargs)
 
-class ContentManagementView(TemplateView):
+
+class ContentManagementView(LoginRequiredMixin, TemplateView):
     template_name = "admin/content_management.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or request.user.role != "admin":
+            return redirect('home')
+        return super().dispatch(request, *args, **kwargs)
 
-from django.views.generic import CreateView, ListView
-from django.urls import reverse_lazy
-from .models import Slang, Article
-from .forms import SlangForm, ArticleForm
+    def get_context_data(self, **kwargs):
+        slang_contents = Slang.objects.all()
+        article_contents = Article.objects.all()
+        contents = list(slang_contents) + list(article_contents)
+
+        context = super().get_context_data(**kwargs)
+        context['contents'] = contents
+        return context
+
 
 # สร้างคำศัพท์หยาบและคำแสลง
-class SlangCreateView(CreateView):
+class SlangCreateView(LoginRequiredMixin, CreateView):
     model = Slang
     form_class = SlangForm
     template_name = 'admin/add_slang.html'
     success_url = reverse_lazy('content_management')  # หลังจากเพิ่มเสร็จจะไปที่หน้า Content Management
 
+class BadWordCreateView(LoginRequiredMixin, FormView):
+    template_name = "admin/add_badword.html"
+    form_class = BadwordForm
+    success_url = reverse_lazy("content_management")
+
+    def form_valid(self, form):
+        words = form.cleaned_data["badwords"]
+        added_words = []
+
+        for word in words:
+            obj, created = BadWord.objects.get_or_create(word=word)
+            if created:
+                added_words.append(word)
+
+        if added_words:
+            messages.success(self.request, f"เพิ่มคำใหม่เรียบร้อย: {', '.join(added_words)}")
+        else:
+            messages.info(self.request, "ไม่มีคำใหม่ถูกเพิ่ม เพราะมีอยู่แล้วในระบบ")
+
+        return super().form_valid(form)
+
+
+
 # สร้างบทความ
-class ArticleCreateView(CreateView):
+class ArticleCreateView(LoginRequiredMixin, CreateView):
     model = Article
     form_class = ArticleForm
     template_name = 'admin/add_article.html'
     success_url = reverse_lazy('content_management')  # หลังจากเพิ่มเสร็จจะไปที่หน้า Content Management
 
+    def form_valid(self, form):
+        if self.request.user.is_authenticated:
+            form.instance.created_by = self.request.user  # กำหนด created_by เป็นผู้ใช้ที่ล็อกอิน
+        else:
+            return redirect('admin_signin')  # หากไม่ได้ล็อกอิน ให้ไปที่หน้าเข้าสู่ระบบ
+        return super().form_valid(form)
+
 # แสดงบทความทั้งหมด
-class ContentManagementView(ListView):
-    model = Article
-    template_name = 'admin/content_management.html'
-    context_object_name = 'contents'
-
-
-from django.views.generic import UpdateView, DeleteView
-from django.urls import reverse_lazy
-from .models import Article
+# class ContentListView(LoginRequiredMixin, ListView):
+#     model = Article
+#     template_name = 'content.html'
+#     context_object_name = 'contents'  # กำหนดชื่อ context ให้ตรงกับในเทมเพลต
+#
+#     def form_valid(self, form):
+#         # ตรวจสอบว่า user ที่ล็อกอินมี role เป็น 'admin'
+#         if self.request.user.role == 'admin':
+#             # ตั้งค่าผู้สร้างเป็น user ที่ล็อกอิน
+#             form.instance.created_by = self.request.user
+#             return super().form_valid(form)
+#         else:
+#             # ถ้า user ไม่ใช่ admin แสดง error หรือทำอย่างอื่นตามต้องการ
+#             form.add_error(None, 'You must be an admin to create an article.')
+#             return self.form_invalid(form)
 
 # แก้ไขบทความ
-class ArticleUpdateView(UpdateView):
+class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     model = Article
-    fields = ['title', 'content', 'created_by']
+    form_class = ArticleForm
     template_name = 'admin/edit_article.html'
     success_url = reverse_lazy('content_management')
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or request.user.role != "admin":
+            messages.error(request, "คุณไม่มีสิทธิ์แก้ไขบทความ")
+            return redirect('home')
+        return super().dispatch(request, *args, **kwargs)
 # ลบบทความ
-class ArticleDeleteView(DeleteView):
-    model = Article
-    template_name = 'admin/confirm_delete.html'
-    success_url = reverse_lazy('content_management')
+class ArticleDeleteView(LoginRequiredMixin, DeleteView):
+    def post(self, request, pk):
+        if not request.user.is_authenticated or request.user.role != "admin":
+            return JsonResponse({'message': 'คุณไม่มีสิทธิ์ลบบทความ'}, status=403)
+
+        try:
+            content = Article.objects.get(id=pk)
+            content.delete()
+            return JsonResponse({'message': 'Content deleted successfully'}, status=200)
+        except Article.DoesNotExist:
+            return JsonResponse({'message': 'Content not found'}, status=404)

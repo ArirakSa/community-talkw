@@ -1,5 +1,5 @@
 {% load static tailwind_tags %}
-{% include 'base.html' %}
+{% include 'header.html' %}
 
 <!DOCTYPE html>
 <html lang="th">
@@ -15,22 +15,31 @@
     <!-- Container ใหญ่ -->
     <div class="max-w-4xl mx-auto mt-12 p-6 bg-white">
         <!-- กล่องสำหรับสร้าง Thread -->
-        <div class="bg-white shadow-md rounded-lg p-6 mb-6 mt-10">
-            <div class="bg-gray-800 shadow-md rounded-lg p-6">
-                <a href="{% url 'profile' %}">
-                    <div class="inline-block">
-                        {% if user.profile_picture %}
-                            <img src="{{ user.profile_picture.url }}" alt="Profile Picture" class="w-10 h-10 rounded-full object-cover">
-                        {% endif %}
-                    </div>
-                </a>
-                <a href="{% url 'thread_form' %}">
-                    <div class="mt-4 bg-white border border-gray-300 p-4 rounded-lg text-gray-700 text-center shadow-sm cursor-pointer hover:bg-gray-100">
-                        + Create a Thread
-                    </div>
-                </a>
-            </div>
-        </div>
+<div class="bg-white shadow-md rounded-lg p-6 mb-6 mt-10">
+    <div class="bg-gray-800 shadow-md rounded-lg p-6">
+        {% if user.is_authenticated %}
+            <a href="{% url 'profile' %}">
+                <div class="inline-block">
+                    {% if user.profile_picture %}
+                        <img src="{{ user.profile_picture.url }}" alt="Profile Picture" class="w-10 h-10 rounded-full object-cover">
+                    {% endif %}
+                </div>
+            </a>
+            <a href="{% url 'thread_form' %}">
+                <div class="mt-4 bg-white border border-gray-300 p-4 rounded-lg text-gray-700 text-center shadow-sm cursor-pointer hover:bg-gray-100">
+                    + Create a Thread
+                </div>
+            </a>
+        {% else %}
+            <a href="{% url 'signin' %}">
+                <div class="mt-4 bg-white border border-gray-300 p-4 rounded-lg text-gray-700 text-center shadow-sm cursor-pointer hover:bg-gray-100">
+                    + Create a Thread (Please sign in)
+                </div>
+            </a>
+        {% endif %}
+    </div>
+</div>
+
 
         <!-- แสดง Thread ที่สร้าง -->
         {% if threads %}
@@ -95,12 +104,19 @@
                         <h2 class="font-semibold text-lg text-gray-800">{{ thread.title }}</h2>
                         <a href="{% url 'thread_detail' pk=thread.pk %}" class="text-blue-500 mt-2 inline-block">Read more</a>
 
-                        <!-- Comment Box -->
-<div class="bg-gray-100 border border-gray-300  rounded-lg p-4 mb-4 mt-2">
-    <p class="text-md font-medium text-gray-700 cursor-pointer hover:text-gray-900" onclick="openCommentModal({{ thread.pk }})">
-        Comment
-    </p>
+<!-- Comment Box -->
+<div class="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 mt-2">
+    {% if user.is_authenticated %}
+        <p class="text-md font-medium text-gray-700 cursor-pointer hover:text-gray-900" onclick="openCommentModal({{ thread.pk }})">
+            Comment
+        </p>
+    {% else %}
+        <a href="{% url 'signin' %}" class="text-md font-medium text-gray-700 cursor-pointer hover:text-gray-900">
+            Please sign in to comment
+        </a>
+    {% endif %}
 </div>
+
 
 
                     </div>
@@ -187,51 +203,71 @@
  // ปรับ CSRF token ให้ถูกต้อง
     const csrfToken = "{{ csrf_token }}";
 
-    function openCommentModal(threadId) {
-        Swal.fire({
-            title: "Add a Comment",
-            html: `
-                <textarea id="comment-text" class="swal2-textarea" placeholder="Enter your comment" rows="4"></textarea>
-            `,
-            showCancelButton: true,
-            confirmButtonText: "Post Comment",
-            cancelButtonText: "Cancel",
-            customClass: {
-                confirmButton: 'btn-blue',
-            },
-            preConfirm: () => {
-                const commentContent = document.getElementById("comment-text").value;
+function openCommentModal(threadId) {
+    Swal.fire({
+        title: "Add a Comment",
+        html: `
+            <textarea id="comment-text" class="swal2-textarea" placeholder="Enter your comment" rows="4"></textarea>
+        `,
+        showCancelButton: true,
+        confirmButtonText: "Post Comment",
+        cancelButtonText: "Cancel",
+        customClass: {
+            confirmButton: 'btn-blue',
+        },
+        preConfirm: () => {
+            const comment = document.getElementById("comment-text").value;
+            if (!comment) {
+                Swal.showValidationMessage("Please enter a comment.");
+                return false;
+            }
 
-                if (!commentContent) {
-                    Swal.showValidationMessage("Please enter a comment.");
-                    return false;
+            // ส่งข้อมูลคอมเมนต์
+            const formData = new FormData();
+            formData.append("content", comment);
+
+            // ใช้ CSRF Token ด้วย
+            const csrfToken = "{{ csrf_token }}";
+            formData.append("csrfmiddlewaretoken", csrfToken);
+
+            // ใช้ fetch เพื่อส่งคอมเมนต์
+            return fetch(`/comment/${threadId}/`, {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-CSRFToken": csrfToken // CSRF Token ที่ถูกต้อง
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.error || "Failed to post comment.");
                 }
 
-                const formData = new FormData();
-                formData.append("content", commentContent);
-
-                formData.append("csrfmiddlewaretoken", csrfToken); // เพิ่ม CSRF token
-
-                return fetch(`/thread/${threadId}/comment/`, {  // URL ให้ถูกต้อง
-                    method: "POST",
-                    body: formData,
-                    headers: {
-                        "X-CSRFToken": csrfToken  // เพิ่ม CSRF token ใน header
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        throw new Error(data.error || "Failed to post comment.");
-                    }
-                    Swal.fire("Comment Posted!", "Your comment has been posted.", "success");
-                })
-                .catch(error => {
-                    Swal.fire("Error!", error.message, "error");
+                // ใช้ SweetAlert เพื่อแสดงข้อความสำเร็จ
+                Swal.fire({
+                    title: "Comment Posted!",
+                    text: "Your comment has been posted.",
+                    icon: "success",
+                    timer: 1500,  // ปรับเวลาการแสดงข้อความเป็น 1.5 วินาที
+                    showConfirmButton: false
+                }).then(() => {
+                    // เพิ่มคอมเมนต์ใหม่ในหน้าเว็บโดยไม่ต้องรีเฟรช
+                    const newCommentHtml = `
+                        <div class="bg-gray-50 border p-4 rounded-lg shadow-sm">
+                            <p class="text-gray-800">${comment}</p>
+                            <p class="text-xs text-gray-500 mt-2">Posted by ${data.username} on ${data.created_at}</p>
+                        </div>
+                    `;
+                    document.querySelector(".space-y-4.mt-4").insertAdjacentHTML('beforeend', newCommentHtml);
                 });
-            }
-        });
-    }
+            })
+            .catch(error => {
+                Swal.fire("Error!", error.message, "error");
+            });
+        }
+    });
+}
     function confirmDelete(threadId) {
     Swal.fire({
         title: "Are you sure?",
@@ -263,8 +299,6 @@
         }
     });
 }
-
-
 </script>
 
 <!-- เพิ่ม CSS เพื่อปรับแต่งปุ่ม -->
