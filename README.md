@@ -4,15 +4,15 @@
 **ตรวจสอบการติดตั้งและความพร้อมใช้งานของเครื่องมือที่จำเป็น**
 ##### 1. ตรวจสอบว่ามี Python หรือไม่ โดยใช้คำสั่ง
 * python --version
-<br> หากไม่มีให้ทำการ download จาก https://www.python.org/downloads/ โดยเลือก version 3.8 ขึ้นไป
+<br> หากไม่มีให้ทำการ downloads จาก https://www.python.org/downloads/ โดยเลือก version 3.8 ขึ้นไป
 ##### 2. ตรวจสอบว่ามี Node หรือไม่
 * node --version
-<br>หากไม่มีให้ทำการ download  จาก https://nodejs.org/
+<br>หากไม่มีให้ทำการ downloads  จาก https://nodejs.org/
 
 ##### 3. ตรวจสอบว่ามี MySQL หรือไม่ โดยใช้คำสั่ง
 *  mysql --version
-<br>หากไม่มีให้ทำการ download MySQL จาก https://dev.mysql.com/downloads/installer/
-<br>และ download  MySQL workbench จาก https://dev.mysql.com/downloads/workbench/
+<br>หากไม่มีให้ทำการ downloads MySQL จาก https://dev.mysql.com/downloads/installer/
+<br>และ downloads  MySQL workbench จาก https://dev.mysql.com/downloads/workbench/
 <br>ทำการสร้างฐานข้อมูล ใน  MySQL workbench ชื่อ dssi-prj
 
 ##### 4. ทำการ Clone project  โดยใช้คำสั่ง
