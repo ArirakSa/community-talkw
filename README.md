@@ -1,7 +1,7 @@
 # Project Talk with TOK 
 #### <br>พัฒนาโดยใช้ Django Tailwind และ MySQL
 
-**ตรวจสอบเครื่องมือว่ามีพร้อมใช้งานหรือไม่**
+**ตรวจสอบการติดตั้งและความพร้อมใช้งานของเครื่องมือที่จำเป็น**
 ##### 1. ตรวจสอบว่ามี Python หรือไม่ โดยใช้คำสั่ง
 * python --version
 <br> หากไม่มีให้ทำการ download จาก https://www.python.org/downloads/ โดยเลือก version 3.8 ขึ้นไป
@@ -32,9 +32,16 @@
 * npm install
 * cd ../../
 
-##### 8. เริ่มต้น Tailwind CSS โดยใช้คำสั่ง
+##### 8. เตรียมฐานข้อมูลโปรเจกต์
+* python manage.py migrate
+
+##### 9. สร้าง Superuser (Admin) สำหรับเข้าใช้ส่วนของ admin
+* python manage.py createsuperuser ( ตามด้วยใส่ username, email และรหัสผ่าน )
+
+##### 10. install และเริ่มต้น Tailwind CSS โดยใช้คำสั่ง
+* python manage.py tailwind install
 * python manage.py tailwind start
 
-##### 9. รัน Django Server
+##### 11. run Django Server
 * python manage.py runserver
 
